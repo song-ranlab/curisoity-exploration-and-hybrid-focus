@@ -3,11 +3,12 @@ import tf
 import rospy
 import math
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Float32
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from darknet_ros_msgs.msg import BoundingBoxes
 from nav_msgs.msg import OccupancyGrid, Odometry
+
 
 #May or may not need this import
 import roslib; roslib.load_manifest('visualization_marker_tutorials')
@@ -243,6 +244,63 @@ def dcallback(msg):
             #output marker to message
             pub.publish(marker)
         
+def ppxCallback(data):
+
+    global hdg, ort, xcen
+    global id, pub, marker
+    global xpos, ypos
+
+    xcen = data.data
+    if xcen <= (1280/2):
+        ort = "L"
+        print("XCEN1 = ", xcen)
+        hd = 31 - (xcen*(62.0/1280))
+        hdg = int(round(hd)-3)
+        print("HD = ", hd)
+        print("HDG 1 = ", hdg)
+    elif xcen > (1280/2):
+        ort = "R"
+        print("XCEN1 = ", xcen)
+        hd = 360 - 31 - (xcen*(62.0/1280))
+        hdg = int(round(hd)-3)
+        print("HD = ", hd)
+        print("HDG 1 = ", hdg)
+
+    #Incrament marker, will put duplicate markers for obj until not seen
+    id += 1
+    
+    if hdg == 360:
+        hdg = 359
+    
+    #print("HDG 2 = ",hdg)
+    print("ORT = ", ort)
+
+    #if statement ensures a proper heading calculated and position calculated
+    if check == 1:
+        #Marker needs to be related to the map frame to reference the position globally
+        marker.header.frame_id = "/map"
+        marker.type = marker.CYLINDER
+        marker.action = marker.ADD
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
+        #color.a is a transparency setting
+        marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.pose.orientation.w = 1.0
+        #all the tf coordinates are rotated -90 from front of robot
+        # x, y coordinate rotation equaction:
+        #x'= xcosT - ysinT, y' = xsinT + ycosT (T = -90)
+        #the decision tree in Lcallback correctly determines x and y pos in global frame
+        marker.pose.position.x = xpos
+        marker.pose.position.y = ypos
+        marker.pose.position.z = 0.0
+        marker.id = id
+        #output marker to message
+        pub.publish(marker)
+
 
     
 
@@ -263,6 +321,7 @@ def scanPrint(msg):
         #for i in ran(0,360):
         #    print(msg.rans[i])
 
+#start of code for grid and x,y conversion - unused
 def Gcallback(msg):
         global m
         global robx, roby
@@ -304,9 +363,15 @@ def Ocallback(msg):
 #Main Function
 
 rospy.init_node('adding_markers')
+
 sub2 = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, dcallback)
-#test = rospy.Subscriber('/scan', LaserScan, dcallback)
-sub = rospy.Subscriber('/scan', LaserScan, Lcallback)
-#sub3 = rospy.Subscriber('/map', OccupancyGrid, Gcallback)
+
 sub4 = rospy.Subscriber('/odom', Odometry,  Ocallback )
+
+sub = rospy.Subscriber('/scan', LaserScan, Lcallback)
+
+sub3 = rospy.Subscriber("PPX_X_COORD", Float32, ppxCallback)
+#test = rospy.Subscriber('/scan', LaserScan, dcallback)
+#sub3 = rospy.Subscriber('/map', OccupancyGrid, Gcallback)
+
 rospy.spin()
