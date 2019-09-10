@@ -15,7 +15,6 @@
 #include <fstream>
 
 using namespace std;
-int x = 0;
 
 #define POSEDIM 3
 typedef array<int,POSEDIM> pose_t;
@@ -54,8 +53,10 @@ string  to_json(int time, cv::Mat& mat1, string name1, cv::Mat& mat2, string nam
   case CV_32FC1:  msg+=to_string_iter(mat1.begin<float>(), mat1.end<float>()); break;
   default: msg+="unsupported";
   }
+  msg+="]";
 
-  //msg+="\n";
+
+  //msg+="}\n";
   return msg;
 }
 
@@ -241,11 +242,11 @@ int main(int argc, char* argv[]){
   }
   //ofstream out_ppx_json("perplexity.json");
 
-  bool show_topics=false, show_words=false, show_bw=false, show_color=true, show_wppx=true, show_tppx=true, show_plots=false, show_img=true;
+  bool show_topics=false, show_words=false, show_bw=false, show_color=false, show_wppx=false, show_tppx=false, show_plots=false, show_img=false;
   int ppx_show_type=2; string ppx_name="Topic+Word Perplexity";
   cv::Mat last_image;
-  cv::namedWindow("Perplexity", cv::WINDOW_NORMAL);
-  cv::loadWindowParameters("Perplexity");
+  //cv::namedWindow("Perplexity", cv::WINDOW_NORMAL);
+  //cv::loadWindowParameters("Perplexity");
   if(args.count("fullscreen")){
     cv::setWindowProperty("Perplexity", CV_WND_PROP_FULLSCREEN , CV_WINDOW_FULLSCREEN);  
   }
@@ -334,16 +335,17 @@ int main(int argc, char* argv[]){
 
     string ppx_json =to_json(i-1, topic_ppx_cells,"topic_perplexity", word_ppx_cells,"word_perplexity");
     out_ppx_json<<ppx_json<<endl;
-    ppx_broadcaster.push(ppx_json);
+    //ppx_broadcaster.push(ppx_json);
 
-
+    	/*
     cv::Mat summary_image;
     if(last_image.rows>0 && args.count("summarizer")){
       summarizer.add_timestep(i-1,last_image);
       summary_image=summarizer.render(800,600);
       cv::imshow("Summary",summary_image);
     }
-    last_image=img.clone();
+	*/
+    //last_image=img.clone();
       
     cerr<<" #W = "<<accumulate(rost.get_weight_Z().begin(), rost.get_weight_Z().end(),0);
     cerr<<" #TPPX = "<<mean_topic_ppx;
@@ -400,19 +402,19 @@ int main(int argc, char* argv[]){
       ppx_plot_small = colorize(ppx_cells, cv::Vec3b(0,0,255), cv::Vec3b(255,255,255)); //show in green
     }
 
-    cv::resize(ppx_plot_small,ppx_plot, img.size());
-    cv::addWeighted( img, 0.5, ppx_plot, 0.9, 0.0, ppx_plot);
+    //cv::resize(ppx_plot_small,ppx_plot, img.size());
+    //cv::addWeighted( img, 0.5, ppx_plot, 0.9, 0.0, ppx_plot);
 
     //footer
     //cv::addText(ppx_plot, "Curious Sunshine", cv::Point(ppx_plot.cols/2-100,12), font);
-    if(!args["header"].as<string>().empty())
-       cv::addText(ppx_plot, args["header"].as<string>(), cv::Point(10,40), font);
+    //if(!args["header"].as<string>().empty())
+       //cv::addText(ppx_plot, args["header"].as<string>(), cv::Point(10,40), font);
 
     //cv::addText(ppx_plot, "Yogesh Girdhar, Juan Camilo Gamboa, Travis Manderson, Greg Dudek", cv::Point(ppx_plot.cols/2-260,ppx_plot.rows-10), font);
-    if(!args["footer"].as<string>().empty())
-       cv::addText(ppx_plot, args["footer"].as<string>(), cv::Point(10,ppx_plot.rows-10), font_footer);
+    //if(!args["footer"].as<string>().empty())
+       //cv::addText(ppx_plot, args["footer"].as<string>(), cv::Point(10,ppx_plot.rows-10), font_footer);
     
-    cv::imshow("Perplexity",ppx_plot);
+    //cv::imshow("Perplexity",ppx_plot);
     last_poses = current_poses;
     last_word_poses = wordposes;
 
@@ -482,17 +484,7 @@ int main(int argc, char* argv[]){
       rost.beta /=1.5;	
       cerr<<" beta = "<<rost.beta<<endl; 
       break;
-    case 'b':
-      ofstream myfile ("/home/curran/Documents/rost_ws/example.txt", fstream::app);
-      if (myfile.is_open())
-       {
-         myfile << "This is line";
-         myfile << x << endl;
-         myfile.close();
-         x++;
-       }
-      else cout << "Unable to open file";
-      break;
+
     };
     cerr<<"        \r";
   }
