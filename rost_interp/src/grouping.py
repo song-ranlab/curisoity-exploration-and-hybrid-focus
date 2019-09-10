@@ -5,19 +5,23 @@ import re
 import os
 import rospy
 from std_msgs.msg import Float32
+#ppx = perplexity
 
 def Average(lst):
-    return sum(lst) / len(lst)
+    avg = np.mean(lst) #Find mean of array (used for threshold)
+    #var = np.std(lst) #Find std deviation (for threshold)
+    
+    return avg
 
 def neighbours((x, y)):
         candidatesX = [(x - 1), (x + 1), (x), (x)]
         candidatesY = [(y), (y), (y - 1), (y + 1)]
         return [candidatesX, candidatesY]
 
-def grouping(test_array):
-    avg = np.mean(test_array) #Find mean of array (used for threshold)
+def grouping(test_array, avg):
+    
     var = np.std(test_array) #Find std deviation (for threshold)
-    alpha = 2 #Deviating from mean by two std deviations to include approx. 95% of data
+    alpha = 2 #Deviating from mean by two std deviations to include data in (x + var to x + alpha*var)
     #print avg, "\n", var
     test_array = np.array(test_array)
     all_group = []
@@ -36,7 +40,7 @@ def grouping(test_array):
             #Using first in case no variables were declared
             if first == 0:
                 #Determine if the value of the current point > threshold
-                if test_array[i,j] > (avg - (alpha*var)) and test_array[i,j] <= (avg + (alpha*var)):
+                if test_array[i,j] > (avg + (var)) and test_array[i,j] <= (avg + (alpha*var)):
                     first = 1 #counter to check if first iteration
 
                     group.append([j, i, (test_array[i,j])]) #variable to hold information of each member of a given group
@@ -66,7 +70,7 @@ def grouping(test_array):
                                 continue
                             
                             #Add group member if criteria met
-                            if test_array[look_y[c], look_x[c]] > (avg- (alpha*var)) and test_array[look_y[c],look_x[c]] <= (avg + (alpha*var)):
+                            if test_array[look_y[c], look_x[c]] > (avg + (var)) and test_array[look_y[c],look_x[c]] <= (avg + (alpha*var)):
                                 group.append([look_x[c], look_y[c], (test_array[look_y[c],look_x[c]])])
                                 region[k] += test_array[look_y[c],look_x[c]]
                                 seen_x.append(look_x[c])
@@ -74,7 +78,7 @@ def grouping(test_array):
                                 check_x = look_x[c]
                                 check_y = look_y[c]                             
             else:
-                if test_array[i,j] > (avg- (alpha*var)) and test_array[i,j] <= (avg + (alpha*var)):
+                if test_array[i,j] > (avg + (var)) and test_array[i,j] <= (avg + (alpha*var)):
                     
                     nx = 0  #counter reset
                     #verify current position has not been seen              
@@ -116,7 +120,7 @@ def grouping(test_array):
                                 continue
 
                             #Add group member if criteria met: within one variance of average
-                            if test_array[look_y[c], look_x[c]] > (avg- (alpha*var)) and test_array[look_y[c],look_x[c]] <= (avg + (alpha*var)):
+                            if test_array[look_y[c], look_x[c]] > (avg + (var)) and test_array[look_y[c],look_x[c]] <= (avg + (alpha*var)):
                                 group.append([look_x[c], look_y[c], (test_array[look_y[c],look_x[c]])])
                                 region[k] += test_array[look_y[c],look_x[c]]
                                 seen_x.append(look_x[c])
@@ -148,7 +152,9 @@ def PPX_Interp(): #Node for reading PPX file and outputing desired coordinate
 
     pub = rospy.Publisher('PPX_X_COORD', Float32, queue_size=10)
     rospy.init_node('PPX_Interp')
-    rate = rospy.Rate(500) #10 hz
+    #rate = rospy.Rate(500) #10 hz
+    count = 0
+    run_avg = 0
 
     while not rospy.is_shutdown():
         #Open up .json with PPX last_line, read only last line
@@ -164,11 +170,19 @@ def PPX_Interp(): #Node for reading PPX file and outputing desired coordinate
         last_line = np.asarray(last_line)
         last_line = last_line.astype(float)
         last_line = np.reshape(last_line, (15,20))
-        #call funtion to get coordinate from data
-        h = grouping(last_line)
-        #Publish value to ROS Msg
-        pub.publish(h)
-        rospy.sleep(10) 
+        #Calculate a running average
+        run_avg = (Average(last_line) + run_avg) / 2.0
+        if count < 31:
+            count += 1
+            print count
+                
+        if count >= 30: #Wait for 30sec to compile ppx baseline
+            #call funtion to get coordinate from data
+            h = grouping(last_line, run_avg)
+            #Publish value to ROS Msg
+            pub.publish(h)
+
+        rospy.sleep(1) 
 
 #Begin MAIN for ROS Node
 
