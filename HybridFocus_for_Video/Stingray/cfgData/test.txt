@@ -1,0 +1,5 @@
+/home/curran/Documents/yolo_ws/Darknet_DL/darknet/Stingray/cfgData/Yolo-Annotation-Tool-New-/stingray-22.jpg
+/home/curran/Documents/yolo_ws/Darknet_DL/darknet/Stingray/cfgData/Yolo-Annotation-Tool-New-/stingray-47.jpg
+/home/curran/Documents/yolo_ws/Darknet_DL/darknet/Stingray/cfgData/Yolo-Annotation-Tool-New-/stingray-30.jpg
+/home/curran/Documents/yolo_ws/Darknet_DL/darknet/Stingray/cfgData/Yolo-Annotation-Tool-New-/stingray-31.jpg
+/home/curran/Documents/yolo_ws/Darknet_DL/darknet/Stingray/cfgData/Yolo-Annotation-Tool-New-/stingray-23.jpg
