@@ -1,5 +1,0 @@
-<launch>
-    <node pkg="obj_markers" type="obj.py" name="adding_markers" output="screen">
-        
-    </node>
-</launch>
