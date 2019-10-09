@@ -8,6 +8,7 @@ from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from darknet_ros_msgs.msg import BoundingBoxes
 from nav_msgs.msg import OccupancyGrid, Odometry
+from curious_obj_routine.msg import curious
 
 
 #May or may not need this import
@@ -25,6 +26,7 @@ roby = 0
 marker = Marker()
 id = 0
 pub = rospy.Publisher(topic, Marker, queue_size=10)
+loc_pub = rospy.Publisher('curious_coord', curious)
 m = 0
 
 #Testing variables
@@ -166,103 +168,100 @@ def Lcallback(msg):
     
     
 def dcallback(msg):
-    #Input class of object found
-    obj = msg.bounding_boxes[0].Class
-    obj1 = msg.bounding_boxes[1].Class
-    obj2 = msg.bounding_boxes[2].Class
-    obj3 = msg.bounding_boxes[2].Class
-    #obj4 = msg.bounding_boxes[2].Class
-
     global hdg, ort, xcen
     global id, pub, marker
     global xpos, ypos
-    #if statement to include desired object, ADD Probability
-    if obj == 'bottle' or obj1 == 'bottle' or obj2 == 'bottle' or obj3 == 'bottle': 
-        xmin = msg.bounding_boxes[0].xmin
-        xmax = msg.bounding_boxes[0].xmax
-        xcen = (xmax - xmin)/2 + xmin
+    rospy.sleep(4)
+    #Determine number of objects currently seen
+    size = len(msg.bounding_boxes)
 
-        #print("XMIN = ", xmin)
-        #print("XMAX = ", xmax)
-        print("XCEN = ", xcen)
-        #print("HDG 0 = ",hdg)
+    #Input class of object found
+    for i in range(size):
+        obj = msg.bounding_boxes[i].Class
+        if obj == 'bottle':
+            xmin = msg.bounding_boxes[i].xmin
+            xmax = msg.bounding_boxes[i].xmax
+            xcen = (xmax - xmin)/2 + xmin
+            print("XCEN = ", xcen)
+           
+            #Switched to logitech webcam for usb_cam on jetson
+            #video output 640x480
+            #Field of View 60 degrees, horizontal
+            #pixel to degree conversion (60/640), horizontal
+            
+            #force hdg to be an int, round will output float if given float despite being an int
+            #heading is center point of bounding box
+            #ort used in determining global position of object
+            if xcen <= (640/2):
+                ort = "L"
+                #print("XCEN1 = ", xcen)
+                hd = 31 - (xcen*(62.0/640))
+                hdg = int(round(hd))
+                #print("HD = ", hd)
+                #print("HDG 1 = ", hdg)
+            elif xcen > (640/2):
+                ort = "R"
+                #print("XCEN1 = ", xcen)
+                hd = 360 - 31 - (xcen*(62.0/640))
+                hdg = int(round(hd))
+                #print("HD = ", hd)
+                #print("HDG 1 = ", hdg)
 
-        #video output 1920x720 or 1920x480
-        #Field of View 62.2 degrees, horizontal
-        #pixel to degree conversion (62.2/1920), horizontal
-        
-        #force hdg to be an int, round will output float if given float despite being an int
-        #heading is center point of bounding box
-        #ort used in determining global position of object
-        if xcen <= (1280/2):
-           ort = "L"
-           print("XCEN1 = ", xcen)
-           hd = 31 - (xcen*(62.0/1280))
-           hdg = int(round(hd)-3)
-           print("HD = ", hd)
-           print("HDG 1 = ", hdg)
-        elif xcen > (1280/2):
-           ort = "R"
-           print("XCEN1 = ", xcen)
-           hd = 360 - 31 - (xcen*(62.0/1280))
-           hdg = int(round(hd)-3)
-           print("HD = ", hd)
-           print("HDG 1 = ", hdg)
+            #Incrament marker, will put duplicate markers for obj until not seen
+            id += 1
+            
+            if hdg == 360:
+                hdg = 359
+            
+            #print("HDG 2 = ",hdg)
+            print("ORT = ", ort)
 
-        #Incrament marker, will put duplicate markers for obj until not seen
-        id += 1
-        
-        if hdg == 360:
-            hdg = 359
-        
-        #print("HDG 2 = ",hdg)
-        print("ORT = ", ort)
-
-        #if statement ensures a proper heading calculated and position calculated
-        if check == 1:
-            #Marker needs to be related to the map frame to reference the position globally
-            marker.header.frame_id = "/map"
-            marker.type = marker.CYLINDER
-            marker.action = marker.ADD
-            marker.scale.x = 0.2
-            marker.scale.y = 0.2
-            marker.scale.z = 0.2
-            #color.a is a transparency setting
-            marker.color.a = 1.0
-            marker.color.r = 1.0
-            marker.color.g = 1.0
-            marker.color.b = 0.0
-            marker.pose.orientation.w = 1.0
-            #all the tf coordinates are rotated -90 from front of robot
-            # x, y coordinate rotation equaction:
-            #x'= xcosT - ysinT, y' = xsinT + ycosT (T = -90)
-            #the decision tree in Lcallback correctly determines x and y pos in global frame
-            marker.pose.position.x = xpos
-            marker.pose.position.y = ypos
-            marker.pose.position.z = 0.0
-            marker.id = id
-            #output marker to message
-            pub.publish(marker)
+            #if statement ensures a proper heading calculated and position calculated
+            if check == 1:
+                #Marker needs to be related to the map frame to reference the position globally
+                marker.header.frame_id = "/map"
+                marker.type = marker.CYLINDER
+                marker.action = marker.ADD
+                marker.scale.x = 0.2
+                marker.scale.y = 0.2
+                marker.scale.z = 0.2
+                #color.a is a transparency setting
+                marker.color.a = 1.0
+                marker.color.r = 1.0
+                marker.color.g = 1.0
+                marker.color.b = 0.0
+                marker.pose.orientation.w = 1.0
+                #all the tf coordinates are rotated -90 from front of robot
+                # x, y coordinate rotation equaction:
+                #x'= xcosT - ysinT, y' = xsinT + ycosT (T = -90)
+                #the decision tree in Lcallback correctly determines x and y pos in global frame
+                marker.pose.position.x = xpos
+                marker.pose.position.y = ypos
+                marker.pose.position.z = 0.0
+                marker.id = id
+                #output marker to message
+                pub.publish(marker)
+                rospy.sleep(4)
         
 def ppxCallback(data):
-
+    rospy.sleep(4)
     global hdg, ort, xcen
     global id, pub, marker
     global xpos, ypos
 
     xcen = data.data
-    if xcen <= (1280/2):
+    if xcen <= (640/2):
         ort = "L"
         print("XCEN1 = ", xcen)
-        hd = 31 - (xcen*(62.0/1280))
-        hdg = int(round(hd)-3)
+        hd = 31 - (xcen*(60.0/640))
+        hdg = int(round(hd))
         print("HD = ", hd)
         print("HDG 1 = ", hdg)
-    elif xcen > (1280/2):
+    elif xcen > (640/2):
         ort = "R"
         print("XCEN1 = ", xcen)
-        hd = 360 - 31 - (xcen*(62.0/1280))
-        hdg = int(round(hd)-3)
+        hd = 360 - 31 - (xcen*(60.0/640))
+        hdg = int(round(hd))
         print("HD = ", hd)
         print("HDG 1 = ", hdg)
 
@@ -300,6 +299,14 @@ def ppxCallback(data):
         marker.id = id
         #output marker to message
         pub.publish(marker)
+        
+        #Additional publisher to ouput location for navigation
+        msg_send = curious()
+        msg_send.x = xpos
+        msg_send.y = ypos
+        loc_pub.publish(msg_send)
+
+        rospy.sleep(4)
 
 
     
@@ -371,6 +378,7 @@ sub4 = rospy.Subscriber('/odom', Odometry,  Ocallback )
 sub = rospy.Subscriber('/scan', LaserScan, Lcallback)
 
 sub3 = rospy.Subscriber("PPX_X_COORD", Float32, ppxCallback)
+
 #test = rospy.Subscriber('/scan', LaserScan, dcallback)
 #sub3 = rospy.Subscriber('/map', OccupancyGrid, Gcallback)
 
